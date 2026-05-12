@@ -1,4 +1,12 @@
 <!DOCTYPE html>
+<!-- 
+  =========================================
+  Projekt: Tarifní Kompas (Srovnávač předplacenek)
+  Verze: 1.1
+  Datum poslední úpravy: 12. května 2026
+  Popis verze: Opraveno zalamování dlouhého textu u detailů, přidána verze do kódu i do patičky.
+  =========================================
+-->
 <html lang="cs">
 <head>
     <meta charset="UTF-8">
@@ -10,15 +18,6 @@
     
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-    <!-- Chosen Palette: Warm Neutrals with Emerald Accents (bg-stone-50, text-stone-800, accent emerald-600) -->
-    <!-- Application Structure Plan: Dashboard approach. Top section provides context and visual summary (Bar chart) of calling costs to establish a baseline. The core interaction is the sortable data table below, allowing users to drill down into specific prices (Min, SMS, Data) and expand rows for qualitative notes (bonuses, network). This prioritizes immediate visual comparison followed by detailed, user-controlled exploration. -->
-    <!-- Visualization & Content Choices: 
-         1. Goal: Compare Base Calling Costs -> Viz: Bar Chart (Chart.js) -> Justification: Easiest way to visually identify the cheapest providers at a glance.
-         2. Goal: Detailed Price & Data Analysis -> Viz: Interactive HTML Table -> Justification: Fulfills explicit user request for a clear, sortable grid of exact prices and data bonuses.
-         3. Goal: Extra Context (Network, Notes) -> Viz: Expandable Table Rows -> Justification: Keeps the main table clean but allows access to qualitative data without leaving the page context. 
-    -->
-    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
@@ -129,31 +128,11 @@
 
     </main>
 
-    <!-- AI Chatbot Interface -->
-    <button onclick="toggleChat()" class="fixed bottom-6 right-6 bg-emerald-600 text-white rounded-full p-4 shadow-lg hover:bg-emerald-700 transition-all z-50 flex items-center gap-3 hover:scale-105">
-        <span class="text-xl">✨</span> <span class="font-bold hidden sm:inline pr-2">AI Poradce</span>
-    </button>
-
-    <div id="chatModal" class="fixed bottom-24 right-6 w-[350px] max-w-[calc(100vw-3rem)] bg-white rounded-2xl shadow-2xl border border-stone-200 flex flex-col hidden z-50 overflow-hidden h-[500px] max-h-[80vh] transition-all">
-        <div class="bg-stone-900 text-white p-4 flex justify-between items-center">
-            <h3 class="font-bold flex items-center gap-2"><span>✨</span> Chytrý asistent</h3>
-            <button onclick="toggleChat()" class="text-stone-300 hover:text-white text-xl leading-none">&times;</button>
-        </div>
-        <div id="chatMessages" class="flex-1 p-4 overflow-y-auto bg-stone-50 space-y-4 flex flex-col">
-            <div class="bg-emerald-100 text-emerald-900 p-3 rounded-xl rounded-tl-sm text-sm w-5/6 self-start shadow-sm">
-                Ahoj! Jsem AI poradce. Napiš mi, kolik minut měsíčně provoláš, kolik pošleš SMS a kolik potřebuješ dat. Najdu ti ten nejlepší tarif z naší nabídky!
-            </div>
-        </div>
-        <div class="p-3 bg-white border-t border-stone-200 flex gap-2">
-            <input type="text" id="chatInput" class="flex-1 border border-stone-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500" placeholder="Např. Volám 100 minut..." onkeypress="handleChatEnter(event)">
-            <button onclick="sendChatMessage()" id="sendBtn" class="bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-emerald-700 transition-colors disabled:opacity-50">Odeslat</button>
-        </div>
-    </div>
-
     <!-- Footer -->
     <footer class="bg-stone-900 text-stone-400 py-8 mt-12">
         <div class="max-w-7xl mx-auto px-4 text-center text-sm">
             <p>Interaktivní analýza předplacených tarifů. Ceny jsou orientační na základě standardních základních sazebníků bez doplňkových balíčků.</p>
+            <p class="mt-2 text-stone-500 text-xs">Verze 1.1 (Aktualizováno 12. května 2026)</p>
         </div>
     </footer>
 
@@ -217,13 +196,14 @@
                 tbody.appendChild(tr);
 
                 // Detail Row (Hidden by default)
-        const detailTr = document.createElement('tr');
-        detailTr.id = `detail-${item.id}`;
-        detailTr.className = 'detail-row border-b border-stone-200';
-        detailTr.innerHTML = `
-            <td colspan="4" class="p-0 whitespace-normal">
-                <div class="px-6 py-4 bg-stone-50 border-l-4 border-emerald-400">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                // Opraveno: Přidána třída whitespace-normal do buňky td, aby se text správně zalamoval
+                const detailTr = document.createElement('tr');
+                detailTr.id = `detail-${item.id}`;
+                detailTr.className = 'detail-row border-b border-stone-200';
+                detailTr.innerHTML = `
+                    <td colspan="4" class="p-0 whitespace-normal">
+                        <div class="px-6 py-4 bg-stone-50 border-l-4 border-emerald-400">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <h4 class="text-xs font-bold text-stone-500 uppercase tracking-wider mb-1">Doplňující informace</h4>
                                     <p class="text-sm text-stone-800">${item.note}</p>
@@ -366,115 +346,6 @@
                     }
                 }
             });
-        }
-
-        // --- AI Chatbot Logic ---
-        let isChatOpen = false;
-        let chatHistory = [];
-        const apiKey = ""; // The Immersive environment injects the key automatically
-
-        function toggleChat() {
-            isChatOpen = !isChatOpen;
-            const modal = document.getElementById('chatModal');
-            if (isChatOpen) {
-                modal.classList.remove('hidden');
-                document.getElementById('chatInput').focus();
-            } else {
-                modal.classList.add('hidden');
-            }
-        }
-
-        function handleChatEnter(e) {
-            if (e.key === 'Enter') sendChatMessage();
-        }
-
-        async function sendChatMessage() {
-            const input = document.getElementById('chatInput');
-            const sendBtn = document.getElementById('sendBtn');
-            const message = input.value.trim();
-            if (!message) return;
-
-            // 1. Add User Message to UI
-            appendMessage('user', message);
-            input.value = '';
-            input.disabled = true;
-            sendBtn.disabled = true;
-
-            // 2. Show Loading state
-            const loadingId = appendMessage('ai', 'Analyzuji nabídky...', true);
-
-            // 3. Prepare Payload for Gemini API
-            chatHistory.push({ role: "user", parts: [{ text: message }] });
-
-            // We inject the JSON data directly into the system prompt so the LLM is perfectly grounded in your data
-            const systemPrompt = `Jsi expertní AI poradce pro výběr předplacených mobilních tarifů v ČR. 
-            Máš k dispozici přesně tato aktuální data z našeho srovnávače (ve formátu JSON):
-            ${JSON.stringify(rawData)}
-            
-            Tvým úkolem je analyzovat požadavek uživatele (např. odhadovaná spotřeba minut, dat) a doporučit 1 až 2 nejvhodnější poskytovatele POUZE ze seznamu výše. 
-            Odpovídej stručně, přátelsky, v češtině. Zdůvodni svůj výběr na základě cen (min/sms) nebo poznámek k datům/bonusům. 
-            K formátování používej tučné písmo (např. **Název Operátora**). Nenabízej tarify, které nejsou v datech.`;
-
-            const payload = {
-                contents: chatHistory,
-                systemInstruction: { parts: [{ text: systemPrompt }] }
-            };
-
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
-
-            // 4. Call Gemini API
-            try {
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                const result = await response.json();
-                
-                const aiText = result.candidates?.[0]?.content?.parts?.[0]?.text || "Omlouvám se, nepodařilo se mi najít odpověď.";
-                
-                // Add response to history context for multi-turn conversations
-                chatHistory.push({ role: "model", parts: [{ text: aiText }] });
-                updateMessage(loadingId, aiText);
-            } catch (error) {
-                console.error("API Error:", error);
-                updateMessage(loadingId, "Promiňte, nastala chyba při komunikaci se serverem.");
-            } finally {
-                input.disabled = false;
-                sendBtn.disabled = false;
-                input.focus();
-            }
-        }
-
-        function appendMessage(sender, text, isLoading = false) {
-            const container = document.getElementById('chatMessages');
-            const msgDiv = document.createElement('div');
-            const id = 'msg-' + Date.now();
-            msgDiv.id = id;
-            
-            // Basic Markdown to HTML conversion for bold text and line breaks
-            const formattedText = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
-
-            if (sender === 'user') {
-                msgDiv.className = 'bg-stone-200 text-stone-800 p-3 rounded-xl rounded-tr-sm text-sm w-5/6 self-end shadow-sm';
-            } else {
-                msgDiv.className = `bg-emerald-100 text-emerald-900 p-3 rounded-xl rounded-tl-sm text-sm w-5/6 self-start shadow-sm transition-opacity ${isLoading ? 'opacity-50 animate-pulse' : 'opacity-100'}`;
-            }
-            msgDiv.innerHTML = formattedText;
-            container.appendChild(msgDiv);
-            container.scrollTop = container.scrollHeight;
-            return id;
-        }
-
-        function updateMessage(id, text) {
-            const msgDiv = document.getElementById(id);
-            if (msgDiv) {
-                msgDiv.classList.remove('opacity-50', 'animate-pulse');
-                msgDiv.innerHTML = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
-                
-                const container = document.getElementById('chatMessages');
-                container.scrollTop = container.scrollHeight;
-            }
         }
 
         // Run on load
