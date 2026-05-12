@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Srovnávač Předplacených Karet | Interaktivní Přehled</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Chosen Palette: Warm Neutrals with Emerald Accents (bg-stone-50, text-stone-800, accent emerald-600) -->
+    <!-- Application Structure Plan: Dashboard approach. Top section provides context and visual summary (Bar chart) of calling costs to establish a baseline. The core interaction is the sortable data table below, allowing users to drill down into specific prices (Min, SMS, Data) and expand rows for qualitative notes (bonuses, network). This prioritizes immediate visual comparison followed by detailed, user-controlled exploration. -->
+    <!-- Visualization & Content Choices: 
+         1. Goal: Compare Base Calling Costs -> Viz: Bar Chart (Chart.js) -> Justification: Easiest way to visually identify the cheapest providers at a glance.
+         2. Goal: Detailed Price & Data Analysis -> Viz: Interactive HTML Table -> Justification: Fulfills explicit user request for a clear, sortable grid of exact prices and data bonuses.
+         3. Goal: Extra Context (Network, Notes) -> Viz: Expandable Table Rows -> Justification: Keeps the main table clean but allows access to qualitative data without leaving the page context. 
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        
+        /* Required Chart Container Styling */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 40vh;
+            max-height: 400px;
+        }
+        
+        /* Custom scrollbar for table container */
+        .table-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+        .table-scroll::-webkit-scrollbar-track { background: #f5f5f4; }
+        .table-scroll::-webkit-scrollbar-thumb { background: #d6d3d1; border-radius: 4px; }
+        .table-scroll::-webkit-scrollbar-thumb:hover { background: #a8a29e; }
+        
+        .row-expanded { background-color: #f0fdf4 !important; border-left: 4px solid #10b981; }
+        .detail-row { display: none; }
+        .detail-row.active { display: table-row; background-color: #f8fafc; }
+    </style>
+</head>
+<body class="bg-stone-50 text-stone-800 antialiased">
+
+    <!-- Header -->
+    <header class="bg-white border-b border-stone-200 shadow-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <span class="text-2xl">📱</span>
+                <h1 class="text-xl font-bold text-stone-900">Tarifní Kompas</h1>
+            </div>
+            <div class="text-sm text-stone-500 font-medium">
+                Aktualizováno pro rok 2026
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+        <!-- Introduction Section -->
+        <section class="bg-white rounded-2xl shadow-sm border border-stone-200 p-6 md:p-8">
+            <h2 class="text-2xl font-bold text-stone-900 mb-4">Nejvýhodnější předplacené karty na trhu</h2>
+            <p class="text-stone-600 leading-relaxed max-w-3xl">
+                Tento přehled slouží k rychlé orientaci v nabídce tzv. "předplacenek" (karet bez měsíčního paušálu). 
+                Hlavním kritériem pro řazení je <strong>základní cena za minutu volání</strong>. Mnoho virtuálních operátorů 
+                nabízí výrazně lepší podmínky než klasická "velká trojka" (O2, T-Mobile, Vodafone), pokud nevyužíváte speciální balíčky.
+                Data jsou u těchto karet často formou bonusů za dobití nebo volitelných doplňkových balíčků.
+            </p>
+        </section>
+
+        <!-- Chart Section -->
+        <section class="bg-white rounded-2xl shadow-sm border border-stone-200 p-6 md:p-8">
+            <div class="flex justify-between items-end mb-6">
+                <div>
+                    <h3 class="text-lg font-bold text-stone-900">Vizuální srovnání cen</h3>
+                    <p class="text-sm text-stone-500">Kolik zaplatíte za 1 minutu hovoru (Kč)</p>
+                </div>
+            </div>
+            
+            <!-- MANDATORY CHART CONTAINER -->
+            <div class="chart-container">
+                <canvas id="priceChart"></canvas>
+            </div>
+        </section>
+
+        <!-- Data Table Section -->
+        <section class="bg-white rounded-2xl shadow-sm border border-stone-200 p-6 md:p-8 overflow-hidden">
+            <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                    <h3 class="text-lg font-bold text-stone-900">Detailní ceník a přehled bonusů</h3>
+                    <p class="text-sm text-stone-500">Kliknutím na hlavičku sloupce můžete data řadit. Kliknutím na řádek zobrazíte detaily.</p>
+                </div>
+                <div class="bg-emerald-50 text-emerald-700 px-4 py-2 rounded-lg text-sm font-semibold border border-emerald-100 flex items-center gap-2">
+                    <span>💡</span> Tip: Virtuálové jsou levnější!
+                </div>
+            </div>
+
+            <div class="table-scroll overflow-x-auto rounded-lg border border-stone-200">
+                <table class="w-full text-left border-collapse whitespace-nowrap min-w-[800px]">
+                    <thead>
+                        <tr class="bg-stone-100 text-stone-600 text-sm uppercase tracking-wider">
+                            <th class="p-4 font-semibold cursor-pointer hover:bg-stone-200 transition-colors" onclick="handleSort('name')">
+                                Poskytovatel <span id="sort-name" class="ml-1 opacity-50">↕</span>
+                            </th>
+                            <th class="p-4 font-semibold cursor-pointer hover:bg-stone-200 transition-colors" onclick="handleSort('min')">
+                                Cena za minutu <span id="sort-min" class="ml-1 text-emerald-600">↑</span>
+                            </th>
+                            <th class="p-4 font-semibold cursor-pointer hover:bg-stone-200 transition-colors" onclick="handleSort('sms')">
+                                Cena za SMS <span id="sort-sms" class="ml-1 opacity-50">↕</span>
+                            </th>
+                            <th class="p-4 font-semibold">
+                                Datové možnosti / Bonusy
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="divide-y divide-stone-200 text-stone-800">
+                        <!-- Table rows generated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-stone-900 text-stone-400 py-8 mt-12">
+        <div class="max-w-7xl mx-auto px-4 text-center text-sm">
+            <p>Interaktivní analýza předplacených tarifů. Ceny jsou orientační na základě standardních základních sazebníků bez doplňkových balíčků.</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // Data Structure (Simulated Report Data)
+        const rawData = [
+            { id: 1, name: 'Odorik', network: 'T-Mobile', min: 1.69, sms: 1.10, data: 'Účtování po datech (1 Kč/MB) nebo balíčky.', note: 'Absolutně nejlevnější základní sazba na trhu. Ideální pro ty, co málo volají a občas potřebují SMS.' },
+            { id: 2, name: 'Kaktus', network: 'T-Mobile', min: 2.50, sms: 1.50, data: 'Legendární "Dobíječka" (2x kredit).', note: 'Nejoblíbenější pro mladé. Při využití Dobíječky máte v podstatě data a volání za polovic. Účtování volání po vteřinách (1+1).' },
+            { id: 3, name: 'Mobil.cz', network: 'T-Mobile', min: 2.50, sms: 1.50, data: 'Pomalý internet ZDARMA po dobití.', note: 'I když nemáte kredit na data, zprávy přes WhatsApp/Messenger projdou díky pomalému internetu zdarma.' },
+            { id: 4, name: 'BLESKmobil', network: 'O2', min: 2.50, sms: 1.50, data: 'Základní měsíční datové balíčky.', note: 'Jedna z nejstarších a nejznámějších virtuálních karet. Lze dobíjet v každé trafice.' },
+            { id: 5, name: 'Tesco Mobile', network: 'O2', min: 2.50, sms: 1.50, data: 'Dvojnásobný kredit s Clubcard.', note: 'Skvělá volba, pokud nakupujete v Tescu. Za dobití s Clubcard máte 2x tolik kreditu, takže reálné ceny jsou poloviční.' },
+            { id: 6, name: 'SAZKAmobil', network: 'Vodafone', min: 2.50, sms: 1.50, data: 'Odměny za dobití (data zdarma).', note: 'Při dobití nad určitou částku si můžete vybrat odměnu - např. levnější volání nebo data navíc.' },
+            { id: 7, name: 'Vodafone Karta', network: 'Vodafone', min: 3.49, sms: 1.90, data: 'Předpřipravené balíčky s daty.', note: 'Základní sazba dražší, vyplatí se spíše při koupi balíčků Volání+Data v aplikaci Můj Vodafone.' },
+            { id: 8, name: 'T-Mobile Twist', network: 'T-Mobile', min: 3.90, sms: 1.90, data: 'Odměny za dobití v aplikaci.', note: 'Tradiční karta. Nejlepší je dobíjet přes jejich mobilní aplikaci pro získání dat zdarma navíc.' },
+            { id: 9, name: 'O2 GO', network: 'O2', min: 4.90, sms: 1.90, data: 'Denní internet (draze), nebo balíčky.', note: 'Nejdražší základní volání na trhu. Bez nákupu doplňkových balíčků se dlouhodobě velmi prodraží.' }
+        ];
+
+        // State Management
+        let currentData = [...rawData];
+        let sortCol = 'min';
+        let sortAsc = true;
+        let chartInstance = null;
+
+        // --- Core Functions ---
+
+        // Initialize App
+        function init() {
+            sortData('min', true); // Initial sort by cheapest minute
+            renderTable();
+            renderChart();
+        }
+
+        // Format Currency
+        function formatCZK(num) {
+            return parseFloat(num).toFixed(2).replace('.', ',') + ' Kč';
+        }
+
+        // Render the Interactive Table
+        function renderTable() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            currentData.forEach(item => {
+                // Main Row
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-stone-200 hover:bg-stone-50 cursor-pointer transition-colors';
+                tr.onclick = () => toggleRow(item.id, tr);
+
+                tr.innerHTML = `
+                    <td class="p-4 font-semibold flex items-center gap-3">
+                        <span class="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold">${item.name.charAt(0)}</span>
+                        ${item.name}
+                    </td>
+                    <td class="p-4 font-bold ${item.min < 3 ? 'text-emerald-600' : 'text-stone-700'}">${formatCZK(item.min)}</td>
+                    <td class="p-4">${formatCZK(item.sms)}</td>
+                    <td class="p-4 text-sm text-stone-600 truncate max-w-xs" title="${item.data}">
+                        ${item.data}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+
+                // Detail Row (Hidden by default)
+                const detailTr = document.createElement('tr');
+                detailTr.id = `detail-${item.id}`;
+                detailTr.className = 'detail-row border-b border-stone-200';
+                detailTr.innerHTML = `
+                    <td colspan="4" class="p-0">
+                        <div class="px-6 py-4 bg-stone-50 border-l-4 border-emerald-400">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <h4 class="text-xs font-bold text-stone-500 uppercase tracking-wider mb-1">Doplňující informace</h4>
+                                    <p class="text-sm text-stone-800">${item.note}</p>
+                                </div>
+                                <div>
+                                    <h4 class="text-xs font-bold text-stone-500 uppercase tracking-wider mb-1">Síť</h4>
+                                    <p class="text-sm text-stone-800 flex items-center gap-2">
+                                        <span class="inline-block w-2 h-2 rounded-full bg-blue-500"></span>
+                                        Využívá infrastrukturu: <strong>${item.network}</strong>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(detailTr);
+            });
+        }
+
+        // Toggle Detail Row
+        function toggleRow(id, rowElement) {
+            const detailRow = document.getElementById(`detail-${id}`);
+            
+            // Close others (Accordion effect)
+            document.querySelectorAll('.detail-row.active').forEach(el => {
+                if(el.id !== `detail-${id}`) el.classList.remove('active');
+            });
+            document.querySelectorAll('.row-expanded').forEach(el => {
+                if(el !== rowElement) el.classList.remove('row-expanded');
+            });
+
+            // Toggle current
+            detailRow.classList.toggle('active');
+            rowElement.classList.toggle('row-expanded');
+        }
+
+        // Handle Sorting Interaction
+        function handleSort(col) {
+            if (sortCol === col) {
+                sortAsc = !sortAsc;
+            } else {
+                sortCol = col;
+                sortAsc = true;
+            }
+            
+            // Update UI Icons
+            document.querySelectorAll('th span').forEach(span => {
+                span.textContent = '↕';
+                span.className = 'ml-1 opacity-50';
+            });
+            const activeSpan = document.getElementById(`sort-${col}`);
+            activeSpan.textContent = sortAsc ? '↑' : '↓';
+            activeSpan.className = 'ml-1 text-emerald-600 font-bold';
+
+            sortData(col, sortAsc);
+            renderTable();
+            renderChart(); // Update chart to match sorted order
+        }
+
+        // Sort Data Array
+        function sortData(col, asc) {
+            currentData.sort((a, b) => {
+                let valA = a[col];
+                let valB = b[col];
+                
+                if (typeof valA === 'string') {
+                    valA = valA.toLowerCase();
+                    valB = valB.toLowerCase();
+                }
+                
+                if (valA < valB) return asc ? -1 : 1;
+                if (valA > valB) return asc ? 1 : -1;
+                return 0;
+            });
+        }
+
+        // Render Chart.js
+        function renderChart() {
+            const ctx = document.getElementById('priceChart').getContext('2d');
+            
+            const labels = currentData.map(d => d.name);
+            const pricesMin = currentData.map(d => d.min);
+            
+            // Highlight the cheapest
+            const bgColors = currentData.map((d, index) => 
+                index === 0 && sortCol === 'min' ? 'rgba(16, 185, 129, 0.8)' : 'rgba(214, 211, 209, 0.6)'
+            );
+            const borderColors = currentData.map((d, index) => 
+                index === 0 && sortCol === 'min' ? 'rgb(16, 185, 129)' : 'rgb(168, 162, 158)'
+            );
+
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Cena za 1 minutu (Kč)',
+                        data: pricesMin,
+                        backgroundColor: bgColors,
+                        borderColor: borderColors,
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.parsed.y.toFixed(2).replace('.', ',') + ' Kč';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0,0,0,0.05)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                callback: function(value) { return value + ' Kč'; }
+                            }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Run on load
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
